@@ -11,8 +11,14 @@ import shutil
 import sys
 from time import sleep
 
-# 日本語フォント設定
-plt.rcParams['font.sans-serif'] = ['Yu Gothic', 'MS Gothic', 'Hiragino Sans']
+# 日本語フォント設定（OS別）
+import platform
+if platform.system() == 'Windows':
+    plt.rcParams['font.sans-serif'] = ['Yu Gothic', 'MS Gothic']
+elif platform.system() == 'Darwin':  # macOS
+    plt.rcParams['font.sans-serif'] = ['Hiragino Sans', 'Hiragino Kaku Gothic Pro']
+else:  # Linux
+    plt.rcParams['font.sans-serif'] = ['Noto Sans CJK JP', 'IPAexGothic', 'DejaVu Sans']
 plt.rcParams['axes.unicode_minus'] = False
 
 # variablesフォルダのパス
@@ -59,13 +65,10 @@ def parse_stcm_file(filepath):
         
         print(".stcmファイルをパースしました。")
         
+        # Pathlibを使用してクロスプラットフォーム対応
+        filepath_path = Path(filepath)
         find_log_substr = filepath.find("Log_")
         log_substr = filepath[find_log_substr:]
-        
-        find_start_filename_substr = filepath.rfind("/")
-        if find_start_filename_substr == -1:
-            find_start_filename_substr = filepath.rfind("\\")
-        filepath_out = filepath[:find_start_filename_substr].replace("/", "\\")
         
         if find_log_substr > 0 and len(log_substr) > 26:
             pos = log_substr.find('_', log_substr.find('_') + 1)
@@ -73,9 +76,9 @@ def parse_stcm_file(filepath):
         else:
             dir_name = "Converted"
         
-        dir_name = f"{filepath_out}\\{dir_name}"
-        if not os.path.isdir(dir_name):
-            os.mkdir(dir_name)
+        dir_name = filepath_path.parent / dir_name
+        if not dir_name.exists():
+            dir_name.mkdir(parents=True)
         
         len_group_name = len(list_group_name)
         
@@ -83,15 +86,16 @@ def parse_stcm_file(filepath):
             name_group = list_group_name[g]
             print(f"グループ {name_group} を書き込み中...")
             
-            dir_group_name = f"{dir_name}\\{name_group.strip().replace(',', '_').replace('.', '_')}"
-            if not os.path.isdir(dir_group_name):
-                os.mkdir(dir_group_name)
+            dir_group_name = dir_name / name_group.strip().replace(',', '_').replace('.', '_')
+            if not dir_group_name.exists():
+                dir_group_name.mkdir(parents=True)
             
             len_variable_name = len(group_var_names[g])
             
             for i in range(len_variable_name):
                 file_name = group_var_names[g][i].replace(".", "_").replace(":", "_").strip()
-                with open(f'{dir_group_name}\\{file_name}.csv', 'w') as file_out:
+                csv_file_path = dir_group_name / f"{file_name}.csv"
+                with open(csv_file_path, 'w') as file_out:
                     file_out.write(f"Time; {group_var_names[g][i]} \n")
                     for item in list_column_groups[g][i]:
                         time = item['x']
@@ -100,7 +104,7 @@ def parse_stcm_file(filepath):
                         file_out.write(string_out)
         
         print("変換が完了しました!")
-        return dir_name
+        return str(dir_name)
     except Exception as e:
         print(f"エラーが発生しました: {str(e)}")
         return None

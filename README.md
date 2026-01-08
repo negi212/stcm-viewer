@@ -13,33 +13,63 @@ STCM Viewerは、STM32CubeMonitorで記録したデータファイル（.stcm）
 - データのグループ分け管理
 - グラフタイトルのカスタマイズ
 
-## セットアップ
+## インストール
 
-### 必要な環境
-- Python 3.7以上
+### 実行ファイルのダウンロード
 
-### 依存パッケージのインストール
+[Releases](https://github.com/NITTC-Robosemi/stcm-viewer/releases)から、お使いのOSに対応した実行ファイルをダウンロードしてください。
+
+- **Windows**: `stcm-viewer.exe`
+- **Linux**: `stcm-viewer`
+- **macOS**: `stcm-viewer`
+
+### Linux/macOSでの準備
+
+ダウンロード後、実行権限を付与してください：
 
 ```bash
-pip install pandas matplotlib numpy plotly
+chmod +x stcm-viewer
 ```
 
-### ファイル構成
+### 日本語フォントのインストール（Linux のみ）
+
+日本語を正しく表示するため、日本語フォントをインストールしてください：
+
+**Ubuntu/Debian:**
+```bash
+sudo apt-get update
+sudo apt-get install fonts-noto-cjk fonts-ipafont
 ```
-stcm-viewer/
-├── stcm.py           # メインプログラム
-├── README.md         # このファイル
-└── variables/        # CSV出力用フォルダ（自動生成）
+
+**Fedora/RHEL:**
+```bash
+sudo dnf install google-noto-sans-cjk-jp-fonts ipa-gothic-fonts
+```
+
+**Arch Linux:**
+```bash
+sudo pacman -S noto-fonts-cjk adobe-source-han-sans-jp-fonts
 ```
 
 ## 使い方
 
 ### 基本的な使い方
 
-STCMファイルを指定して実行します：
+ターミナル（コマンドプロンプト）で、ダウンロードした実行ファイルにSTCMファイルのパスを指定して実行します。
 
+**Windows:**
+```cmd
+stcm-viewer.exe Log_variables_2026-01-07_17h42m20s.stcm
+```
+
+**Linux/macOS:**
 ```bash
-python stcm.py path/to/your/file.stcm
+./stcm-viewer Log_variables_2026-01-07_17h42m20s.stcm
+```
+
+**PATHを通している場合:**
+```bash
+stcm-viewer Log_variables_2026-01-07_17h42m20s.stcm
 ```
 
 ### コマンドラインオプション
@@ -55,7 +85,11 @@ python stcm.py path/to/your/file.stcm
 
 #### 例1: 基本的な変換とHTML生成
 ```bash
-python stcm.py Log_variables_2026-01-07_17h42m20s.stcm
+# Windows
+stcm-viewer.exe Log_variables_2026-01-07_17h42m20s.stcm
+
+# Linux/macOS
+./stcm-viewer Log_variables_2026-01-07_17h42m20s.stcm
 ```
 実行結果:
 - CSVファイルが一時的に生成されます
@@ -64,76 +98,86 @@ python stcm.py Log_variables_2026-01-07_17h42m20s.stcm
 
 #### 例2: CSVフォルダを保持する
 ```bash
-python stcm.py Log_variables_2026-01-07_17h42m20s.stcm --keep
+# Windows
+stcm-viewer.exe Log_variables_2026-01-07_17h42m20s.stcm --keep
+
+# Linux/macOS
+./stcm-viewer Log_variables_2026-01-07_17h42m20s.stcm --keep
 ```
 CSVファイルが保持され、後で確認・再利用できます。
 
 #### 例3: PDFも生成する
 ```bash
-python stcm.py Log_variables_2026-01-07_17h42m20s.stcm --pdf
+# Windows
+stcm-viewer.exe Log_variables_2026-01-07_17h42m20s.stcm --pdf
+
+# Linux/macOS
+./stcm-viewer Log_variables_2026-01-07_17h42m20s.stcm --pdf
 ```
 HTMLファイルとPDFファイルの両方が生成されます。
 
 ### 機能詳細
 
-#### 1. STCMファイルの解析と変換
-- STCMファイル（JSON形式）を読み込みます
-- グループ名と変数名に基づいてフォルダ構造を作成します
-- 各変数のデータをCSV形式で出力します
-- CSVファイル形式: `Time; VariableName`
+#### 出力されるファイル
+- **HTMLファイル**: `<日時>.html`
+  - ブラウザで操作可能（ズーム、データ確認など）
+  - すべてのデータを重ねて表示し、比較が容易
+- **PDFファイル**: `<日時>.pdf`（`--pdf`オプション時のみ）
+  - 印刷や配布向けの固定レイアウト
+  - 各変数が個別グラフとして配置
 
-#### 2. インタラクティブグラフの生成
-- **個別グラフ表示**: 各変数を独立したサブプロットで表示
-- **統合グラフ表示**: すべての変数を1つのインタラクティブグラフで表示
-- **Plotly機能**: 
-  - ズームイン/アウト
-  - パン（グラフの移動）
-  - ホバーで値の確認
-  - 凡例クリックで系列の表示/非表示切り替え
+#### グラフのカスタマイズ
+プログラム実行中、各グラフのタイトルを変更できます。Enterキーでデフォルト名を使用します。
 
-#### 3. カスタムタイトル設定
-プログラム実行中、各グラフのタイトルをカスタマイズできます：
-```
-グラフのタイトルを入力してください（Enterキーでデフォルト名を使用）:
-variable_name: [カスタムタイトルを入力]
-```
+#### 使い分けの目安
+- **HTML**: データ分析、詳細確認
+- **PDF**: 報告書、記録保存
 
-#### 4. 出力ファイル
-- **HTMLファイル**: `<日時>.html` または `stcm_viewer_interactive.html`
-  - ブラウザで開いて操作できるグラフファイル
-  - 拡大・縮小やデータの詳細確認が可能
-- **PDFファイル**: `<日時>.pdf` または `stcm_viewer_output.pdf` （--pdfオプション使用時のみ）
-  - 印刷や配布に適した固定レイアウトのファイル
-  - 報告書や記録として保存する場合に便利
-  - すべてのグラフが1つのPDFにまとめられます
+## トラブルシューティング
 
-#### 5. PDF出力機能について
-PDF出力は`--pdf`オプションを指定した場合のみ生成されます。
+### エラー: ファイルが見つかりません
+STCMファイルのパスが正しいか確認してください。相対パスまたは絶対パスで指定できます。
 
-**PDFファイルの特徴：**
-- 各変数のグラフが個別に配置された静的なレポート形式
-- 印刷しても見やすいレイアウト
-- グラフ同士を区切る線で見やすく区分
-- 2列のグリッドレイアウトで複数グラフを表示
+### エラー: CSVファイルが見つかりません
+変換処理が正常に完了しているか確認してください。STCMファイルの形式が正しいことを確認してください。
 
-**使い分けの目安：**
-- **HTMLがおすすめ**: データの詳細を確認したい、拡大して細かく見たい場合
-- **PDFがおすすめ**: 報告書に添付したい、印刷して配布したい、記録として保存したい場合
+### 日本語フォントが表示されない（Linux）
+システムに日本語フォントがインストールされているか確認してください（インストールセクション参照）。
 
-### トラブルシューティング
-
-#### エラー: ファイルが見つかりません
-STCMファイルのパスが正しいか確認してください。
-
-#### エラー: CSVファイルが見つかりません
-変換処理が正常に完了しているか確認してください。
-
-#### 日本語フォントが表示されない
-システムに以下のフォントがインストールされているか確認してください：
-- Windows: Yu Gothic, MS Gothic
-- Mac: Hiragino Sans
+### Windows Defenderの警告が出る
+初めてダウンロードした実行ファイルは、Windows Defenderが警告を表示することがあります。
+「詳細情報」→「実行」をクリックして実行してください。
 
 ---
 
-### ライセンス
-このツールはSTM32CubeMonitorのログデータを可視化するために開発されたものです。
+## 開発者向け情報
+
+### Pythonスクリプトとして実行する
+
+ソースコードから直接実行する場合：
+
+#### 必要な環境
+- Python 3.7以上
+
+#### 依存パッケージのインストール
+```bash
+pip install pandas matplotlib numpy plotly
+```
+
+#### 実行方法
+```bash
+python stcm.py Log_variables_2026-01-07_17h42m20s.stcm
+```
+
+### 実行ファイルのビルド
+
+PyInstallerを使用してビルドできます：
+
+```bash
+pip install pyinstaller
+pyinstaller --onefile --name stcm-viewer stcm.py
+```
+
+ビルドされた実行ファイルは`dist/`フォルダに生成されます。
+
+---
