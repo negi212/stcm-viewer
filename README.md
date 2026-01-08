@@ -59,17 +59,17 @@ sudo pacman -S noto-fonts-cjk adobe-source-han-sans-jp-fonts
 
 **Windows:**
 ```cmd
-stcm-viewer.exe Log_variables_2026-01-07_17h42m20s.stcm
+stcm-viewer.exe your_log_file.stcm
 ```
 
 **Linux/macOS:**
 ```bash
-./stcm-viewer Log_variables_2026-01-07_17h42m20s.stcm
+./stcm-viewer your_log_file.stcm
 ```
 
 **PATHを通している場合:**
 ```bash
-stcm-viewer Log_variables_2026-01-07_17h42m20s.stcm
+stcm-viewer your_log_file.stcm
 ```
 
 ### コマンドラインオプション
@@ -86,33 +86,33 @@ stcm-viewer Log_variables_2026-01-07_17h42m20s.stcm
 #### 例1: 基本的な変換とHTML生成
 ```bash
 # Windows
-stcm-viewer.exe Log_variables_2026-01-07_17h42m20s.stcm
+stcm-viewer.exe your_log_file.stcm
 
 # Linux/macOS
-./stcm-viewer Log_variables_2026-01-07_17h42m20s.stcm
+./stcm-viewer your_log_file.stcm
 ```
 実行結果:
 - CSVファイルが一時的に生成されます
-- インタラクティブなHTMLグラフが生成されます（`2026-01-07_17h42m20s.html`）
+- インタラクティブなHTMLグラフが生成されます
 - CSVフォルダは自動的に削除されます
 
 #### 例2: CSVフォルダを保持する
 ```bash
 # Windows
-stcm-viewer.exe Log_variables_2026-01-07_17h42m20s.stcm --keep
+stcm-viewer.exe your_log_file.stcm --keep
 
 # Linux/macOS
-./stcm-viewer Log_variables_2026-01-07_17h42m20s.stcm --keep
+./stcm-viewer your_log_file.stcm --keep
 ```
 CSVファイルが保持され、後で確認・再利用できます。
 
 #### 例3: PDFも生成する
 ```bash
 # Windows
-stcm-viewer.exe Log_variables_2026-01-07_17h42m20s.stcm --pdf
+stcm-viewer.exe your_log_file.stcm --pdf
 
 # Linux/macOS
-./stcm-viewer Log_variables_2026-01-07_17h42m20s.stcm --pdf
+./stcm-viewer your_log_file.stcm --pdf
 ```
 HTMLファイルとPDFファイルの両方が生成されます。
 
@@ -166,7 +166,7 @@ pip install pandas matplotlib numpy plotly
 
 #### 実行方法
 ```bash
-python stcm.py Log_variables_2026-01-07_17h42m20s.stcm
+python stcm.py your_log_file.stcm
 ```
 
 ### 実行ファイルのビルド
