@@ -168,16 +168,3 @@ pip install pandas matplotlib numpy plotly
 ```bash
 python stcm.py your_log_file.stcm
 ```
-
-### 実行ファイルのビルド
-
-PyInstallerを使用してビルドできます：
-
-```bash
-pip install pyinstaller
-pyinstaller --onefile --name stcm-viewer stcm.py
-```
-
-ビルドされた実行ファイルは`dist/`フォルダに生成されます。
-
----
