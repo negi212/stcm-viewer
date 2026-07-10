@@ -57,7 +57,7 @@ jobs:
       - name: Build NSIS installer
         run: |
           makensis packaging/windows/installer.nsi
-          copy dist/windows/stcm-viewer-setup.exe dist/windows/
+          copy packaging/windows/stcm-viewer-setup.exe dist/windows/
 
       - name: Upload Windows installer
         uses: actions/upload-artifact@v4

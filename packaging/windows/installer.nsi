@@ -4,7 +4,7 @@
 !define PRODUCT_EXE "stcm-viewer.exe"
 
 Name "${PRODUCT_NAME} ${PRODUCT_VERSION}"
-OutFile "dist\windows\stcm-viewer-setup.exe"
+OutFile "stcm-viewer-setup.exe"
 InstallDir "$PROGRAMFILES64\${PRODUCT_NAME}"
 RequestExecutionLevel admin
 
