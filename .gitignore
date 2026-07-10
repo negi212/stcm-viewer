@@ -1,3 +1,21 @@
+# Go
+/stcm-viewer
+*.exe
+*.test
+*.out
+vendor/
+
+# Generated outputs
+*.csv
+*.html
+*.pdf
+2026-05-08_17h55m43s/
+
+# Packaging intermediates
+packaging/deb/amd64/
+packaging/deb/arm64/
+
+# Legacy Python artifacts
 __pycache__/
 *.pyc
 *.pyo
@@ -5,6 +23,4 @@ build/
 dist/
 *.spec
 variables/
-*.csv
-*.html
-*.pdf
+.venv/

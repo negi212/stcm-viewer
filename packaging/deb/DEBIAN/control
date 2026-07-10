@@ -1,0 +1,10 @@
+Package: stcm-viewer
+Version: 2.0.0
+Section: utils
+Priority: optional
+Architecture: amd64
+Depends: fonts-noto-cjk
+Maintainer: NITTC Robosemi <s24145@tokyo.kosen-ac.jp>
+Description: STM32CubeMonitor STCM file viewer
+ STCM Viewer converts STM32CubeMonitor .stcm log files into
+ interactive HTML graphs and printable PDF reports.

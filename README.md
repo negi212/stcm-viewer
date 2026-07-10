@@ -1,170 +1,183 @@
 # STCM Viewer
 
-## 概要
+STM32CubeMonitor で記録した `.stcm` ファイルを、ブラウザで操作できる HTML グラフおよび印刷・保存向け PDF に変換するクロスプラットフォーム CLI ツールです。
 
-STCM Viewerは、STM32CubeMonitorで記録したデータファイル（.stcm）を、見やすいグラフに変換するツールです。
+## 主な機能
 
-データをブラウザで表示できるHTMLファイルとして出力し、グラフの拡大・縮小や詳細確認などの操作が可能です。複数のデータを一度に表示して比較することもできます。オプションで印刷や配布に適したPDFファイルも出力できます。
-
-### 主な機能
-- データファイルの読み込みと変換
-- 操作可能なHTMLグラフの生成
-- PDFレポートの出力（オプション）
-- データのグループ分け管理
-- グラフタイトルのカスタマイズ
+- `.stcm` ファイルの解析と CSV への一時変換
+- Plotly.js によるインタラクティブ HTML グラフの生成
+- 各変数ごとの PDF レポート出力（`--pdf` オプション）
+- Linux（amd64 / arm64 / armv7 / .deb）および Windows インストーラー対応
 
 ## インストール
 
-### 実行ファイルのダウンロード
+### Linux（.deb）
 
-[Releases](https://github.com/NITTC-Robosemi/stcm-viewer/releases)から、お使いのOSに対応した実行ファイルをダウンロードしてください。
-
-- **Windows**: `stcm-viewer.exe`
-- **Linux**: `stcm-viewer`
-- **macOS**: `stcm-viewer`
-
-### Linux/macOSでの準備
-
-ダウンロード後、実行権限を付与してください：
+[Releases](https://github.com/NITTC-Robosemi/stcm-viewer/releases) からお使いのアーキテクチャに合わせた `.deb` ファイルをダウンロードしてください。
 
 ```bash
-chmod +x stcm-viewer
+# amd64
+sudo dpkg -i stcm-viewer-linux-amd64.deb
+sudo apt-get install -f
 ```
 
-### 日本語フォントのインストール（Linux のみ）
+インストール後、`stcm-viewer` コマンドが使えるようになります。
 
-日本語を正しく表示するため、日本語フォントをインストールしてください：
+### Linux（バイナリ）
 
-**Ubuntu/Debian:**
+実行ファイルをダウンロードしてPATHの通った場所に配置します。
+
+| ファイル名 | 対応環境 |
+|---|---|
+| `stcm-viewer-linux-amd64` | Linux x86_64 |
+| `stcm-viewer-linux-arm64` | Linux ARM64 |
+| `stcm-viewer-linux-armv7` | Linux ARM 32bit |
+
 ```bash
-sudo apt-get update
-sudo apt-get install fonts-noto-cjk fonts-ipafont
+chmod +x stcm-viewer-linux-amd64
+sudo mv stcm-viewer-linux-amd64 /usr/local/bin/stcm-viewer
 ```
 
-**Fedora/RHEL:**
-```bash
-sudo dnf install google-noto-sans-cjk-jp-fonts ipa-gothic-fonts
-```
+### Windows
 
-**Arch Linux:**
+[Releases](https://github.com/NITTC-Robosemi/stcm-viewer/releases) から `stcm-viewer-setup.exe` をダウンロードして実行してください。
+
+インストーラーが PATH を自動で設定します。コマンドプロンプトや PowerShell から `stcm-viewer` を使えます。
+
+### ソースからビルド
+
+必要な環境：
+
+- Go 1.22 以上
+
 ```bash
-sudo pacman -S noto-fonts-cjk adobe-source-han-sans-jp-fonts
+git clone https://github.com/NITTC-Robosemi/stcm-viewer.git
+cd stcm-viewer
+go build -o stcm-viewer ./src/main.go
 ```
 
 ## 使い方
 
 ### 基本的な使い方
 
-ターミナル（コマンドプロンプト）で、ダウンロードした実行ファイルにSTCMファイルのパスを指定して実行します。
-
-**Windows:**
-```cmd
-stcm-viewer.exe your_log_file.stcm
-```
-
-**Linux/macOS:**
-```bash
-./stcm-viewer your_log_file.stcm
-```
-
-**PATHを通している場合:**
 ```bash
 stcm-viewer your_log_file.stcm
 ```
 
-### コマンドラインオプション
+実行結果：
 
-#### 必須引数
-- `stcm_file`: 変換するSTCMファイルのパス
+- `<日時>.html` が生成されます
+- 一時的な CSV フォルダは自動的に削除されます
 
-#### オプション引数
-- `--keep`: 変換後のCSVフォルダを保持する（デフォルトでは削除されます）
-- `--pdf`: HTMLに加えてPDFファイルも生成する
+### オプション
+
+| オプション | 説明 |
+|---|---|
+| `--keep` | 変換後の CSV フォルダを保持します |
+| `--pdf` | HTML に加えて PDF ファイルも生成します |
 
 ### 使用例
 
-#### 例1: 基本的な変換とHTML生成
 ```bash
-# Windows
-stcm-viewer.exe your_log_file.stcm
+# CSV フォルダを保持
+stcm-viewer your_log_file.stcm --keep
 
-# Linux/macOS
-./stcm-viewer your_log_file.stcm
+# PDF も生成
+stcm-viewer your_log_file.stcm --pdf
+
+# 両方指定
+stcm-viewer your_log_file.stcm --pdf --keep
 ```
-実行結果:
-- CSVファイルが一時的に生成されます
-- インタラクティブなHTMLグラフが生成されます
-- CSVフォルダは自動的に削除されます
 
-#### 例2: CSVフォルダを保持する
+## 出力ファイル
+
+| ファイル | 内容 |
+|---|---|
+| `<日時>.html` | Plotly.js を使用したインタラクティブグラフ |
+| `<日時>.pdf` | 各変数ごとの折れ線グラフレポート（`--pdf` 時） |
+| `<日時>/` | 変換された CSV ファイル群（`--keep` 時） |
+
+## 日本語フォントについて（Linux）
+
+PDF 出力で日本語を正しく表示するため、日本語フォントがインストールされている必要があります。
+
+`.deb` パッケージをインストールすると `fonts-noto-cjk` が依存関係として導入されます。
+
+手動でインストールする場合：
+
+**Ubuntu / Debian:**
+
 ```bash
-# Windows
-stcm-viewer.exe your_log_file.stcm --keep
-
-# Linux/macOS
-./stcm-viewer your_log_file.stcm --keep
+sudo apt-get update
+sudo apt-get install fonts-noto-cjk
 ```
-CSVファイルが保持され、後で確認・再利用できます。
 
-#### 例3: PDFも生成する
+## 開発
+
+### テスト
+
 ```bash
-# Windows
-stcm-viewer.exe your_log_file.stcm --pdf
-
-# Linux/macOS
-./stcm-viewer your_log_file.stcm --pdf
+go test ./...
 ```
-HTMLファイルとPDFファイルの両方が生成されます。
 
-### 機能詳細
+### Linux 向けクロスコンパイル
 
-#### 出力されるファイル
-- **HTMLファイル**: `<日時>.html`
-  - ブラウザで操作可能（ズーム、データ確認など）
-  - すべてのデータを重ねて表示し、比較が容易
-- **PDFファイル**: `<日時>.pdf`（`--pdf`オプション時のみ）
-  - 印刷や配布向けの固定レイアウト
-  - 各変数が個別グラフとして配置
+```bash
+# amd64
+GOOS=linux GOARCH=amd64 go build -ldflags="-s -w" -o stcm-viewer-linux-amd64 ./src/main.go
 
-#### グラフのカスタマイズ
-プログラム実行中、各グラフのタイトルを変更できます。Enterキーでデフォルト名を使用します。
+# arm64
+GOOS=linux GOARCH=arm64 go build -ldflags="-s -w" -o stcm-viewer-linux-arm64 ./src/main.go
 
-#### 使い分けの目安
-- **HTML**: データ分析、詳細確認
-- **PDF**: 報告書、記録保存
+# armv7
+GOOS=linux GOARCH=arm GOARM=7 go build -ldflags="-s -w" -o stcm-viewer-linux-armv7 ./src/main.go
+```
+
+### Windows インストーラーのビルド（NSIS）
+
+```bash
+# Windows バイナリを先にビルド
+GOOS=windows GOARCH=amd64 go build -ldflags="-s -w" -o dist/windows/stcm-viewer.exe ./src/main.go
+
+# NSIS でインストーラー作成
+makensis packaging/windows/installer.nsi
+```
+
+### .deb パッケージのビルド
+
+```bash
+# amd64 の例
+chmod +x stcm-viewer-linux-amd64
+mkdir -p packaging/deb/amd64/DEBIAN packaging/deb/amd64/usr/local/bin
+cp packaging/deb/DEBIAN/control packaging/deb/amd64/DEBIAN/control
+sed -i 's/Architecture: .*/Architecture: amd64/' packaging/deb/amd64/DEBIAN/control
+cp stcm-viewer-linux-amd64 packaging/deb/amd64/usr/local/bin/stcm-viewer
+dpkg-deb --build packaging/deb/amd64 stcm-viewer-linux-amd64.deb
+```
+
+## GitHub Actions
+
+タグを push すると、以下のアセットを自動でビルド・リリースします。
+
+- Linux バイナリ（amd64 / arm64 / armv7）
+- Linux .deb パッケージ（amd64 / arm64）
+- Windows インストーラー（`stcm-viewer-setup.exe`）
+
+```bash
+git tag v2.0.0
+git push origin v2.0.0
+```
 
 ## トラブルシューティング
 
 ### エラー: ファイルが見つかりません
-STCMファイルのパスが正しいか確認してください。相対パスまたは絶対パスで指定できます。
 
-### エラー: CSVファイルが見つかりません
-変換処理が正常に完了しているか確認してください。STCMファイルの形式が正しいことを確認してください。
+STCM ファイルのパスが正しいか確認してください。
 
-### 日本語フォントが表示されない（Linux）
-システムに日本語フォントがインストールされているか確認してください（インストールセクション参照）。
+### エラー: failed to load any font
 
-### Windows Defenderの警告が出る
-初めてダウンロードした実行ファイルは、Windows Defenderが警告を表示することがあります。
-「詳細情報」→「実行」をクリックして実行してください。
+PDF 生成時に日本語フォントが見つからない場合に発生します。`fonts-noto-cjk` などの日本語フォントをインストールしてください。
 
----
+### Windows Defender の警告が出る
 
-## 開発者向け情報
-
-### Pythonスクリプトとして実行する
-
-ソースコードから直接実行する場合：
-
-#### 必要な環境
-- Python 3.7以上
-
-#### 依存パッケージのインストール
-```bash
-pip install pandas matplotlib numpy plotly
-```
-
-#### 実行方法
-```bash
-python stcm.py your_log_file.stcm
-```
+初めてダウンロードした実行ファイルは Windows Defender が警告を表示することがあります。「詳細情報」→「実行」をクリックして実行してください。
