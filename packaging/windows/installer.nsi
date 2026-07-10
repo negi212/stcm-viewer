@@ -4,7 +4,7 @@
 !define PRODUCT_EXE "stcm-viewer.exe"
 
 Name "${PRODUCT_NAME} ${PRODUCT_VERSION}"
-OutFile "stcm-viewer-setup.exe"
+OutFile "dist\windows\stcm-viewer-setup.exe"
 InstallDir "$PROGRAMFILES64\${PRODUCT_NAME}"
 RequestExecutionLevel admin
 
@@ -25,7 +25,7 @@ RequestExecutionLevel admin
 
 Section "Install"
   SetOutPath "$INSTDIR"
-  File "dist\windows\${PRODUCT_EXE}"
+  File "..\..\dist\windows\${PRODUCT_EXE}"
 
   WriteUninstaller "$INSTDIR\uninstall.exe"
 
