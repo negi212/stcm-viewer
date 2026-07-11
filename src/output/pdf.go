@@ -201,6 +201,65 @@ func formatTick(v float64) string {
 	}
 }
 
+type fontCandidate struct {
+	path   string
+	name   string
+	option *gopdf.TtfOption
+}
+
+// findFont searches for an available font on the current system.
+func findFont(pdf *gopdf.GoPdf) (string, string, error) {
+	candidates := []fontCandidate{
+		{"/usr/share/fonts/opentype/noto/NotoSansCJK-Medium.ttc", "noto", &gopdf.TtfOption{}},
+		{"/usr/share/fonts/truetype/noto/NotoSans-Regular.ttf", "noto-latin", nil},
+		{"/usr/share/fonts/truetype/noto/NotoSansCJK-Regular.ttc", "noto-cjk", &gopdf.TtfOption{}},
+		{"/usr/share/fonts/opentype/noto/NotoSansCJK-Regular.ttc", "noto-cjk2", &gopdf.TtfOption{}},
+	}
+
+	// Common Windows font directories.
+	windir := os.Getenv("WINDIR")
+	if windir == "" {
+		windir = `C:\Windows`
+	}
+	winFonts := []string{
+		filepath.Join(windir, `Fonts\meiryo.ttc`),
+		filepath.Join(windir, `Fonts\msgothic.ttc`),
+		filepath.Join(windir, `Fonts\YuGothM.ttc`),
+		filepath.Join(windir, `Fonts\msyh.ttc`),
+		filepath.Join(windir, `Fonts\segoeui.ttf`),
+		filepath.Join(windir, `Fonts\arial.ttf`),
+	}
+	for _, p := range winFonts {
+		candidates = append(candidates, fontCandidate{p, filepath.Base(p), nil})
+	}
+
+	// macOS standard fonts.
+	macFonts := []string{
+		"/System/Library/Fonts/Helvetica.ttc",
+		"/System/Library/Fonts/Supplemental/Arial.ttf",
+		"/Library/Fonts/Arial.ttf",
+	}
+	for _, p := range macFonts {
+		candidates = append(candidates, fontCandidate{p, filepath.Base(p), nil})
+	}
+
+	for _, c := range candidates {
+		if _, err := os.Stat(c.path); err != nil {
+			continue
+		}
+		if c.option != nil {
+			if err := pdf.AddTTFFontWithOption(c.name, c.path, *c.option); err == nil {
+				return c.path, c.name, nil
+			}
+		} else {
+			if err := pdf.AddTTFFont(c.name, c.path); err == nil {
+				return c.path, c.name, nil
+			}
+		}
+	}
+	return "", "", fmt.Errorf("no usable font found")
+}
+
 // GeneratePDF creates a PDF report with one plot per variable.
 func GeneratePDF(allData model.ParsedData, outputPath string) error {
 	traces := flattenTraces(allData)
@@ -215,14 +274,9 @@ func GeneratePDF(allData model.ParsedData, outputPath string) error {
 	pdf := gopdf.GoPdf{}
 	pdf.Start(gopdf.Config{PageSize: *gopdf.PageSizeA4})
 
-	fontPath := "/usr/share/fonts/opentype/noto/NotoSansCJK-Medium.ttc"
-	fontName := "noto"
-	if err := pdf.AddTTFFontWithOption(fontName, fontPath, gopdf.TtfOption{}); err != nil {
-		fontPath = "/usr/share/fonts/truetype/noto/NotoSans-Regular.ttf"
-		fontName = "noto-latin"
-		if err := pdf.AddTTFFont(fontName, fontPath); err != nil {
-			return fmt.Errorf("failed to load any font: %w", err)
-		}
+	_, fontName, err := findFont(&pdf)
+	if err != nil {
+		return fmt.Errorf("failed to load any font: %w", err)
 	}
 	if err := pdf.SetFont(fontName, "", 10); err != nil {
 		return fmt.Errorf("failed to set font: %w", err)
