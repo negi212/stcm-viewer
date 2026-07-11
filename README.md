@@ -7,6 +7,7 @@ STM32CubeMonitor で記録した `.stcm` ファイルを、ブラウザで操作
 - `.stcm` ファイルから HTML グラフを生成
 - ブラウザ上でズームや凡例の表示・非表示ができるインタラクティブなグラフを確認
 - `--pdf` オプションで各変数ごとの PDF レポートを出力
+- 出力ファイル名を自由に指定可能
 
 ## インストール
 
@@ -55,8 +56,17 @@ stcm-viewer your_log_file.stcm
 
 実行すると、以下のファイルが生成されます。
 
-- `<日時>.html` — ブラウザで開くグラフ
+- `<ファイル名>.html` — ブラウザで開くグラフ
 - 一時的な CSV フォルダは自動で削除されます
+
+### 出力名を指定する
+
+2 番目の引数で出力ファイル名を指定できます。
+
+```bash
+stcm-viewer your_log_file.stcm my_output
+# → my_output.html が生成される
+```
 
 ### オプション
 
@@ -71,6 +81,9 @@ stcm-viewer your_log_file.stcm
 # PDF も一緒に出力
 stcm-viewer your_log_file.stcm --pdf
 
+# 出力名を指定して PDF も生成
+stcm-viewer your_log_file.stcm my_output --pdf
+
 # CSV も残す
 stcm-viewer your_log_file.stcm --keep
 
@@ -82,18 +95,9 @@ stcm-viewer your_log_file.stcm --pdf --keep
 
 | ファイル | 内容 |
 |---|---|
-| `<日時>.html` | ブラウザで操作できるグラフ |
-| `<日時>.pdf` | 各変数ごとのグラフレポート（`--pdf` 時） |
+| `<出力名>.html` | ブラウザで操作できるグラフ |
+| `<出力名>.pdf` | 各変数ごとのグラフレポート（`--pdf` 時） |
 | `<日時>/` | 変換された CSV ファイル群（`--keep` 時） |
-
-## PDF で日本語が表示されない場合
-
-PDF 出力には日本語フォントが必要です。`.deb` を使っている場合は自動で入りますが、手動でインストールする場合は以下を実行してください。
-
-```bash
-sudo apt-get update
-sudo apt-get install fonts-noto-cjk
-```
 
 ## 困ったとき
 
@@ -104,6 +108,16 @@ sudo apt-get install fonts-noto-cjk
 ```bash
 stcm-viewer "my log file.stcm"
 ```
+
+### PDF 生成でフォントエラーになる（Windows）
+
+Windows 環境で以下のようなエラーが出る場合は、対応するフォントが見つからないためです。
+
+```
+failed to load any font: CreateFile /usr/share/fonts/...: The system cannot find the path specified.
+```
+
+最新版では Windows のシステムフォントを自動で検出するようになっています。問題が続く場合は、`C:\Windows\Fonts` に `segoeui.ttf` または `arial.ttf` が存在することを確認してください。
 
 ### Windows で保護されましたと表示される
 
