@@ -185,20 +185,21 @@ func resolveCSVFolderName(stcmFileName string) string {
 	return "Converted"
 }
 
-// processSingleFileBatch handles one file in batch mode (no spinner, verbose per-file output).
-func processSingleFileBatch(stcmFile string, outputName string, keep bool, pdf bool) error {
-	fmt.Println("============================================================")
-	fmt.Printf("処理対象: %s\n", stcmFile)
-	fmt.Println("============================================================")
+// processSingleFileBatch handles one file in batch mode with spinner animation (same as single-file mode).
+func processSingleFileBatch(stcmFile string, keep bool, pdf bool, idx, total int) error {
+	base := filepath.Base(stcmFile)
+	prefix := fmt.Sprintf("[%d/%d] %s", idx, total, base)
+	s := newSpinner(prefix + " parsing...")
+	s.Start()
 
-	fmt.Println("\n[ステップ1] STCMファイルをCSVに変換中...")
 	allData, err := parser.ParseSTCMFile(stcmFile)
 	if err != nil {
-		return fmt.Errorf("変換に失敗しました: %w", err)
+		s.Fail(fmt.Errorf("変換に失敗しました: %w", err))
+		return err
 	}
 
-	stcmFileName := filepath.Base(stcmFile)
-	baseName := output.ResolveOutputName(stcmFileName, outputName)
+	stcmFileName := base
+	baseName := output.ResolveOutputName(stcmFileName, "")
 	csvFolderName := resolveCSVFolderName(stcmFileName)
 
 	parentDir := filepath.Dir(stcmFile)
@@ -208,40 +209,41 @@ func processSingleFileBatch(stcmFile string, outputName string, keep bool, pdf b
 	}
 	csvDir, err = output.WriteCSV(csvDir, allData)
 	if err != nil {
-		return fmt.Errorf("CSV書き込みに失敗しました: %w", err)
+		s.Fail(fmt.Errorf("CSV書き込みに失敗しました: %w", err))
+		return err
 	}
-	fmt.Printf("変換済みフォルダ: %s\n", csvDir)
 
-	fmt.Println("\n[ステップ2] インタラクティブグラフを生成中...")
+	s.SetMessage(prefix + " generating HTML...")
 	htmlPath := uniqueFilePath(filepath.Join(parentDir, baseName+".html"))
 	if err := output.GenerateHTML(allData, htmlPath, "All Data"); err != nil {
-		return fmt.Errorf("HTML生成に失敗しました: %w", err)
+		s.Fail(fmt.Errorf("HTML生成に失敗しました: %w", err))
+		return err
 	}
-	fmt.Printf("インタラクティブグラフ出力完了: %s\n", htmlPath)
 
+	pdfPath := ""
 	if pdf {
-		fmt.Println("\n[ステップ3] PDFレポートを生成中...")
-		pdfPath := uniqueFilePath(filepath.Join(parentDir, baseName+".pdf"))
+		s.SetMessage(prefix + " generating PDF...")
+		pdfPath = uniqueFilePath(filepath.Join(parentDir, baseName+".pdf"))
 		if err := output.GeneratePDF(allData, pdfPath); err != nil {
-			return fmt.Errorf("PDF生成に失敗しました: %w", err)
+			s.Fail(fmt.Errorf("PDF生成に失敗しました: %w", err))
+			return err
 		}
-		fmt.Printf("PDFレポート出力完了: %s\n", pdfPath)
 	}
 
 	if !keep {
-		stepLabel := "[ステップ3]"
-		if pdf {
-			stepLabel = "[ステップ4]"
-		}
-		fmt.Printf("\n%s CSVフォルダを削除中...\n", stepLabel)
+		s.SetMessage(prefix + " cleaning up...")
 		if err := os.RemoveAll(csvDir); err != nil {
-			fmt.Fprintf(os.Stderr, "警告: フォルダの削除に失敗しました: %v\n", err)
-		} else {
-			fmt.Printf("フォルダを削除しました: %s\n", csvDir)
+			s.Fail(fmt.Errorf("cleanup: %w", err))
+			return err
 		}
 	}
 
-	fmt.Println("\n--- 完了 ---")
+	s.Stop()
+	// Per-file success line (same style as single-file mode but with progress prefix)
+	fmt.Printf("  %s✓%s [%d/%d] %s%s%s → %s%s%s\n", colorGreen, colorReset, idx, total, colorBold, base, colorReset, colorBold, htmlPath, colorReset)
+	if pdfPath != "" {
+		fmt.Printf("  %s✓%s [%d/%d] %s%s%s → %s%s%s\n", colorGreen, colorReset, idx, total, colorBold, base, colorReset, colorBold, pdfPath, colorReset)
+	}
 	return nil
 }
 
@@ -320,9 +322,7 @@ func main() {
 		successCount := 0
 		failCount := 0
 		for idx, f := range stcmFiles {
-			fmt.Printf("\n[%d/%d] ", idx+1, len(stcmFiles))
-			if err := processSingleFileBatch(f, "", keep, pdf); err != nil {
-				fmt.Fprintf(os.Stderr, "エラー [%s]: %v\n", f, err)
+			if err := processSingleFileBatch(f, keep, pdf, idx+1, len(stcmFiles)); err != nil {
 				failCount++
 			} else {
 				successCount++
@@ -330,7 +330,11 @@ func main() {
 		}
 
 		fmt.Println("\n============================================================")
-		fmt.Printf("バッチ処理が完了しました: 成功 %d / 失敗 %d / 合計 %d\n", successCount, failCount, len(stcmFiles))
+		if failCount == 0 {
+			fmt.Printf("%s✓%s バッチ処理が完了しました: 成功 %d / 失敗 %d / 合計 %d\n", colorGreen, colorReset, successCount, failCount, len(stcmFiles))
+		} else {
+			fmt.Printf("%s✗%s バッチ処理が完了しました: 成功 %d / 失敗 %d / 合計 %d\n", colorRed, colorReset, successCount, failCount, len(stcmFiles))
+		}
 		fmt.Println("============================================================")
 		if failCount > 0 {
 			os.Exit(1)
