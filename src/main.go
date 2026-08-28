@@ -167,17 +167,22 @@ func uniqueDirPath(base string) string {
 }
 
 func resolveCSVFolderName(stcmFileName string) string {
-	csvFolderName := "Converted"
 	if idx := strings.Index(stcmFileName, "Log_"); idx != -1 && len(stcmFileName) > 26 {
 		afterLog := stcmFileName[idx+len("Log_"):]
 		if secondUnderscore := strings.Index(afterLog, "_"); secondUnderscore != -1 {
 			rest := afterLog[secondUnderscore+1:]
 			if len(rest) > 5 {
-				csvFolderName = rest[:len(rest)-5] // without .stcm
+				return rest[:len(rest)-5] // without .stcm
 			}
 		}
 	}
-	return csvFolderName
+	// Fallback: use file name without extension so renamed/custom files keep their name.
+	trimmed := strings.TrimSuffix(stcmFileName, filepath.Ext(stcmFileName))
+	trimmed = strings.TrimSpace(trimmed)
+	if trimmed != "" {
+		return trimmed
+	}
+	return "Converted"
 }
 
 // processSingleFileBatch handles one file in batch mode (no spinner, verbose per-file output).

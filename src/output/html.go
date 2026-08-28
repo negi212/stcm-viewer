@@ -164,5 +164,12 @@ func ResolveOutputName(stcmFileName string, explicitName string) string {
 		return matches[1]
 	}
 
-	return "stcm_viewer_interactive"
+	// Fallback: use file name without extension so renamed files keep their name.
+	// e.g. "my_log.stcm" -> "my_log", "test.stcm" -> "test"
+	trimmed := strings.TrimSuffix(stcmFileName, filepath.Ext(stcmFileName))
+	trimmed = strings.TrimSpace(trimmed)
+	if trimmed == "" {
+		return "stcm_viewer_interactive"
+	}
+	return trimmed
 }
