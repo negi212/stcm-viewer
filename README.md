@@ -51,13 +51,21 @@ sudo mv stcm-viewer-linux-amd64 /usr/local/bin/stcm-viewer
 ### 基本的な使い方
 
 ```bash
+# 単一ファイルを変換
 stcm-viewer your_log_file.stcm
+
+# フォルダ内の全 .stcm を一括変換
+stcm-viewer ./logs/
+
+# サブフォルダも再帰的に処理
+stcm-viewer ./logs/ --recursive
 ```
 
 実行すると、以下のファイルが生成されます。
 
 - `<ファイル名>.html` — ブラウザで開くグラフ
 - 一時的な CSV フォルダは自動で削除されます
+- フォルダ指定時は、フォルダ内の各 `.stcm` ごとに `<日時>.html`（と `--pdf` 時は `.pdf`）が生成されます。同名ファイルが既に存在する場合は `_1`, `_2` … が自動で付与されます。
 
 ### 出力名を指定する
 
@@ -74,6 +82,7 @@ stcm-viewer your_log_file.stcm my_output
 |---|---|
 | `--pdf` | HTML に加えて PDF も生成します |
 | `--keep` | 変換された CSV フォルダを残します |
+| `--recursive` / `-r` | フォルダ指定時、サブフォルダも再帰的に探索します |
 
 ### 使用例
 
@@ -89,6 +98,15 @@ stcm-viewer your_log_file.stcm --keep
 
 # 両方指定
 stcm-viewer your_log_file.stcm --pdf --keep
+
+# フォルダ内の全ファイルを変換（PDF 付き）
+stcm-viewer ./logs/ --pdf
+
+# フォルダを再帰的に変換し CSV も残す
+stcm-viewer ./logs/ --recursive --keep
+
+# フォルダを再帰的に変換し PDF も出力
+stcm-viewer ./logs/ --recursive --pdf
 ```
 
 ## 出力ファイル

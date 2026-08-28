@@ -37,26 +37,35 @@ func WriteCSV(baseDir string, allData model.ParsedData) (string, error) {
 			if err != nil {
 				return "", fmt.Errorf("failed to create csv file %s: %w", filePath, err)
 			}
-			defer file.Close()
 
 			writer := csv.NewWriter(file)
 			writer.Comma = ';'
-			if err := writer.Write([]string{"Time", varName}); err != nil {
-				return "", fmt.Errorf("failed to write csv header: %w", err)
-			}
+			writeErr := func() error {
+				if err := writer.Write([]string{"Time", varName}); err != nil {
+					return fmt.Errorf("failed to write csv header: %w", err)
+				}
 
-			for i := range data.X {
-				record := []string{
-					fmt.Sprintf("%g", data.X[i]),
-					fmt.Sprintf("%g", data.Y[i]),
+				for i := range data.X {
+					record := []string{
+						fmt.Sprintf("%g", data.X[i]),
+						fmt.Sprintf("%g", data.Y[i]),
+					}
+					if err := writer.Write(record); err != nil {
+						return fmt.Errorf("failed to write csv record: %w", err)
+					}
 				}
-				if err := writer.Write(record); err != nil {
-					return "", fmt.Errorf("failed to write csv record: %w", err)
+				writer.Flush()
+				if err := writer.Error(); err != nil {
+					return fmt.Errorf("failed to flush csv writer: %w", err)
 				}
+				return nil
+			}()
+			closeErr := file.Close()
+			if writeErr != nil {
+				return "", writeErr
 			}
-			writer.Flush()
-			if err := writer.Error(); err != nil {
-				return "", fmt.Errorf("failed to flush csv writer: %w", err)
+			if closeErr != nil {
+				return "", fmt.Errorf("failed to close csv file %s: %w", filePath, closeErr)
 			}
 		}
 	}

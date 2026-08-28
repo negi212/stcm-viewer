@@ -4,6 +4,7 @@ import (
 	"fmt"
 	"os"
 	"path/filepath"
+	"sort"
 	"strings"
 	"sync"
 	"time"
@@ -91,11 +92,152 @@ func (s *spinner) Fail(err error) {
 }
 
 func printUsage(program string) {
-	fmt.Fprintf(os.Stderr, "Usage: %s <stcm_file> [output_name] [--keep] [--pdf]\n", program)
+	fmt.Fprintf(os.Stderr, "Usage:\n")
+	fmt.Fprintf(os.Stderr, "  %s <stcm_file> [output_name] [--keep] [--pdf]\n", program)
+	fmt.Fprintf(os.Stderr, "  %s <folder> [--keep] [--pdf] [--recursive]\n", program)
+	fmt.Fprintf(os.Stderr, "\nOptions:\n")
+	fmt.Fprintf(os.Stderr, "  --keep       変換されたCSVフォルダを残す\n")
+	fmt.Fprintf(os.Stderr, "  --pdf        HTMLに加えてPDFも生成する\n")
+	fmt.Fprintf(os.Stderr, "  --recursive  フォルダ指定時、サブフォルダも再帰的に探索する (-r)\n")
 }
 
 func printDone() {
 	fmt.Printf("\n%s✓%s %sDone%s\n\n", colorGreen, colorReset, colorBold, colorReset)
+}
+
+func collectSTCMFiles(dir string, recursive bool) ([]string, error) {
+	var files []string
+	if recursive {
+		err := filepath.Walk(dir, func(path string, info os.FileInfo, err error) error {
+			if err != nil {
+				return err
+			}
+			if !info.IsDir() && strings.EqualFold(filepath.Ext(path), ".stcm") {
+				files = append(files, path)
+			}
+			return nil
+		})
+		if err != nil {
+			return nil, err
+		}
+	} else {
+		entries, err := os.ReadDir(dir)
+		if err != nil {
+			return nil, err
+		}
+		for _, e := range entries {
+			if e.IsDir() {
+				continue
+			}
+			if strings.EqualFold(filepath.Ext(e.Name()), ".stcm") {
+				files = append(files, filepath.Join(dir, e.Name()))
+			}
+		}
+	}
+	sort.Strings(files)
+	return files, nil
+}
+
+// uniqueFilePath returns a file path that does not yet exist by appending _1, _2, ...
+func uniqueFilePath(base string) string {
+	if _, err := os.Stat(base); os.IsNotExist(err) {
+		return base
+	}
+	ext := filepath.Ext(base)
+	withoutExt := strings.TrimSuffix(base, ext)
+	for i := 1; ; i++ {
+		candidate := fmt.Sprintf("%s_%d%s", withoutExt, i, ext)
+		if _, err := os.Stat(candidate); os.IsNotExist(err) {
+			return candidate
+		}
+	}
+}
+
+// uniqueDirPath returns a directory path that does not yet exist.
+func uniqueDirPath(base string) string {
+	if _, err := os.Stat(base); os.IsNotExist(err) {
+		return base
+	}
+	for i := 1; ; i++ {
+		candidate := fmt.Sprintf("%s_%d", base, i)
+		if _, err := os.Stat(candidate); os.IsNotExist(err) {
+			return candidate
+		}
+	}
+}
+
+func resolveCSVFolderName(stcmFileName string) string {
+	csvFolderName := "Converted"
+	if idx := strings.Index(stcmFileName, "Log_"); idx != -1 && len(stcmFileName) > 26 {
+		afterLog := stcmFileName[idx+len("Log_"):]
+		if secondUnderscore := strings.Index(afterLog, "_"); secondUnderscore != -1 {
+			rest := afterLog[secondUnderscore+1:]
+			if len(rest) > 5 {
+				csvFolderName = rest[:len(rest)-5] // without .stcm
+			}
+		}
+	}
+	return csvFolderName
+}
+
+// processSingleFileBatch handles one file in batch mode (no spinner, verbose per-file output).
+func processSingleFileBatch(stcmFile string, outputName string, keep bool, pdf bool) error {
+	fmt.Println("============================================================")
+	fmt.Printf("処理対象: %s\n", stcmFile)
+	fmt.Println("============================================================")
+
+	fmt.Println("\n[ステップ1] STCMファイルをCSVに変換中...")
+	allData, err := parser.ParseSTCMFile(stcmFile)
+	if err != nil {
+		return fmt.Errorf("変換に失敗しました: %w", err)
+	}
+
+	stcmFileName := filepath.Base(stcmFile)
+	baseName := output.ResolveOutputName(stcmFileName, outputName)
+	csvFolderName := resolveCSVFolderName(stcmFileName)
+
+	parentDir := filepath.Dir(stcmFile)
+	csvDir := filepath.Join(parentDir, csvFolderName)
+	if keep {
+		csvDir = uniqueDirPath(csvDir)
+	}
+	csvDir, err = output.WriteCSV(csvDir, allData)
+	if err != nil {
+		return fmt.Errorf("CSV書き込みに失敗しました: %w", err)
+	}
+	fmt.Printf("変換済みフォルダ: %s\n", csvDir)
+
+	fmt.Println("\n[ステップ2] インタラクティブグラフを生成中...")
+	htmlPath := uniqueFilePath(filepath.Join(parentDir, baseName+".html"))
+	if err := output.GenerateHTML(allData, htmlPath, "All Data"); err != nil {
+		return fmt.Errorf("HTML生成に失敗しました: %w", err)
+	}
+	fmt.Printf("インタラクティブグラフ出力完了: %s\n", htmlPath)
+
+	if pdf {
+		fmt.Println("\n[ステップ3] PDFレポートを生成中...")
+		pdfPath := uniqueFilePath(filepath.Join(parentDir, baseName+".pdf"))
+		if err := output.GeneratePDF(allData, pdfPath); err != nil {
+			return fmt.Errorf("PDF生成に失敗しました: %w", err)
+		}
+		fmt.Printf("PDFレポート出力完了: %s\n", pdfPath)
+	}
+
+	if !keep {
+		stepLabel := "[ステップ3]"
+		if pdf {
+			stepLabel = "[ステップ4]"
+		}
+		fmt.Printf("\n%s CSVフォルダを削除中...\n", stepLabel)
+		if err := os.RemoveAll(csvDir); err != nil {
+			fmt.Fprintf(os.Stderr, "警告: フォルダの削除に失敗しました: %v\n", err)
+		} else {
+			fmt.Printf("フォルダを削除しました: %s\n", csvDir)
+		}
+	}
+
+	fmt.Println("\n--- 完了 ---")
+	return nil
 }
 
 func main() {
@@ -104,58 +246,128 @@ func main() {
 		os.Exit(1)
 	}
 
-	stcmFile := os.Args[1]
-	outputName := ""
-	keep := false
-	pdf := false
-	argIdx := 2
-	if argIdx < len(os.Args) {
-		arg := os.Args[argIdx]
-		if arg != "--keep" && arg != "--pdf" {
-			outputName = arg
-			argIdx++
-		}
+	inputPath := os.Args[1]
+	if inputPath == "--help" || inputPath == "-h" {
+		printUsage(os.Args[0])
+		os.Exit(0)
 	}
 
-	for i := argIdx; i < len(os.Args); i++ {
+	keep := false
+	pdf := false
+	recursive := false
+	var positional []string
+
+	for i := 2; i < len(os.Args); i++ {
 		switch os.Args[i] {
 		case "--keep":
 			keep = true
 		case "--pdf":
 			pdf = true
+		case "--recursive", "-r":
+			recursive = true
+		case "--help", "-h":
+			printUsage(os.Args[0])
+			os.Exit(0)
+		default:
+			if strings.HasPrefix(os.Args[i], "-") {
+				fmt.Fprintf(os.Stderr, "エラー: 不明なオプション: %s\n", os.Args[i])
+				printUsage(os.Args[0])
+				os.Exit(1)
+			}
+			positional = append(positional, os.Args[i])
 		}
 	}
 
-	if _, err := os.Stat(stcmFile); os.IsNotExist(err) {
-		fmt.Fprintf(os.Stderr, "%sエラー:%s ファイルが見つかりません: %s\n", colorRed, colorReset, stcmFile)
+	info, err := os.Stat(inputPath)
+	if err != nil {
+		fmt.Fprintf(os.Stderr, "%sエラー:%s ファイル/フォルダが見つかりません: %s\n", colorRed, colorReset, inputPath)
 		os.Exit(1)
+	}
+
+	if info.IsDir() {
+		if len(positional) > 0 {
+			fmt.Fprintf(os.Stderr, "警告: フォルダ指定時は出力名指定は無視されます: %v\n", positional)
+		}
+		stcmFiles, err := collectSTCMFiles(inputPath, recursive)
+		if err != nil {
+			fmt.Fprintf(os.Stderr, "エラー: フォルダの読み取りに失敗しました: %v\n", err)
+			os.Exit(1)
+		}
+		if len(stcmFiles) == 0 {
+			fmt.Fprintf(os.Stderr, "エラー: フォルダ内に .stcm ファイルが見つかりませんでした: %s\n", inputPath)
+			if recursive {
+				fmt.Fprintf(os.Stderr, "（再帰的に探索しました）\n")
+			}
+			os.Exit(1)
+		}
+
+		fmt.Println("============================================================")
+		fmt.Println("STM32CubeMonitor STCM to CSV Converter (Batch Mode)")
+		fmt.Println("============================================================")
+		fmt.Printf("対象フォルダ: %s\n", inputPath)
+		fmt.Printf("再帰的探索: %v\n", recursive)
+		fmt.Printf("対象ファイル数: %d\n", len(stcmFiles))
+		for _, f := range stcmFiles {
+			fmt.Printf("  - %s\n", f)
+		}
+		fmt.Println()
+
+		successCount := 0
+		failCount := 0
+		for idx, f := range stcmFiles {
+			fmt.Printf("\n[%d/%d] ", idx+1, len(stcmFiles))
+			if err := processSingleFileBatch(f, "", keep, pdf); err != nil {
+				fmt.Fprintf(os.Stderr, "エラー [%s]: %v\n", f, err)
+				failCount++
+			} else {
+				successCount++
+			}
+		}
+
+		fmt.Println("\n============================================================")
+		fmt.Printf("バッチ処理が完了しました: 成功 %d / 失敗 %d / 合計 %d\n", successCount, failCount, len(stcmFiles))
+		fmt.Println("============================================================")
+		if failCount > 0 {
+			os.Exit(1)
+		}
+		return
+	}
+
+	// Single file mode - use spinner for nice UX
+	if len(positional) > 0 {
+		// positional[0] is outputName if present
+		if len(positional) > 1 {
+			fmt.Fprintf(os.Stderr, "警告: 余分な引数は無視されます: %v\n", positional[1:])
+		}
+	}
+	outputName := ""
+	if len(positional) > 0 {
+		outputName = positional[0]
+	}
+
+	// Check recursive flag is ignored in single file mode
+	if recursive {
+		fmt.Fprintf(os.Stderr, "警告: 単一ファイル指定時は --recursive は無視されます\n")
 	}
 
 	s := newSpinner("parsing...")
 	s.Start()
 
-	allData, err := parser.ParseSTCMFile(stcmFile)
+	allData, err := parser.ParseSTCMFile(inputPath)
 	if err != nil {
 		s.Fail(fmt.Errorf("変換に失敗しました: %w", err))
 		os.Exit(1)
 	}
 
-	stcmFileName := filepath.Base(stcmFile)
+	stcmFileName := filepath.Base(inputPath)
 	baseName := output.ResolveOutputName(stcmFileName, outputName)
+	csvFolderName := resolveCSVFolderName(stcmFileName)
 
-	csvFolderName := "Converted"
-	if idx := strings.Index(stcmFileName, "Log_"); idx != -1 && len(stcmFileName) > 26 {
-		afterLog := stcmFileName[idx+len("Log_"):]
-		if secondUnderscore := strings.Index(afterLog, "_"); secondUnderscore != -1 {
-			rest := afterLog[secondUnderscore+1:]
-			if len(rest) > 5 {
-				csvFolderName = rest[:len(rest)-5]
-			}
-		}
-	}
-
-	parentDir := filepath.Dir(stcmFile)
+	parentDir := filepath.Dir(inputPath)
 	csvDir := filepath.Join(parentDir, csvFolderName)
+	if keep {
+		csvDir = uniqueDirPath(csvDir)
+	}
 	csvDir, err = output.WriteCSV(csvDir, allData)
 	if err != nil {
 		s.Fail(fmt.Errorf("CSV書き込みに失敗しました: %w", err))
@@ -163,7 +375,7 @@ func main() {
 	}
 
 	s.SetMessage("generating HTML...")
-	htmlPath := filepath.Join(parentDir, baseName+".html")
+	htmlPath := uniqueFilePath(filepath.Join(parentDir, baseName+".html"))
 	if err := output.GenerateHTML(allData, htmlPath, "All Data"); err != nil {
 		s.Fail(fmt.Errorf("HTML: %w", err))
 		os.Exit(1)
@@ -172,7 +384,7 @@ func main() {
 	pdfPath := ""
 	if pdf {
 		s.SetMessage("generating PDF...")
-		pdfPath = filepath.Join(parentDir, baseName+".pdf")
+		pdfPath = uniqueFilePath(filepath.Join(parentDir, baseName+".pdf"))
 		if err := output.GeneratePDF(allData, pdfPath); err != nil {
 			s.Fail(fmt.Errorf("PDF: %w", err))
 			os.Exit(1)
@@ -195,4 +407,3 @@ func main() {
 		fmt.Printf("  %s→%s %s%s%s\n", colorGreen, colorReset, colorBold, pdfPath, colorReset)
 	}
 }
-
